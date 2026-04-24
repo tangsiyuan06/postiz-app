@@ -277,6 +277,7 @@ export const useMenuItem = () => {
     },
     {
       name: t('settings', 'Settings'),
+      hide: true,
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"

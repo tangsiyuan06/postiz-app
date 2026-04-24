@@ -21,9 +21,17 @@ export function setCookie(cname: string, cvalue: string, exdays: number) {
   const expires = 'expires=' + d.toUTCString();
   document.cookie = cname + '=' + cvalue + ';' + expires + ';path=/';
 }
+
+function clearSessionAuth() {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem('auth');
+  window.sessionStorage.removeItem('showorg');
+  window.sessionStorage.removeItem('impersonate');
+}
+
 function LayoutContextInner(params: { children: ReactNode }) {
   const returnUrl = useReturnUrl();
-  const { backendUrl, isGeneral, isSecured } = useVariables();
+  const { backendUrl, isGeneral } = useVariables();
   const afterRequest = useCallback(
     async (url: string, options: RequestInit, response: Response) => {
       if (
@@ -43,19 +51,23 @@ function LayoutContextInner(params: { children: ReactNode }) {
       const logout =
         response?.headers?.get('logout') || response?.headers?.get('Logout');
       if (headerAuth) {
-        setCookie('auth', headerAuth, 365);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('auth', headerAuth);
+        }
       }
       if (showOrg) {
-        setCookie('showorg', showOrg, 365);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('showorg', showOrg);
+        }
       }
       if (impersonate) {
-        setCookie('impersonate', impersonate, 365);
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem('impersonate', impersonate);
+        }
       }
-      if (logout && !isSecured) {
-        setCookie('auth', '', -10);
-        setCookie('showorg', '', -10);
-        setCookie('impersonate', '', -10);
-        window.location.href = '/';
+      if (logout) {
+        clearSessionAuth();
+        window.location.href = '/auth/login';
         return true;
       }
       const reloadOrOnboarding =
@@ -76,17 +88,13 @@ function LayoutContextInner(params: { children: ReactNode }) {
       }
 
       if (response?.headers?.get('reload')) {
-        window.location.reload();
+        window.location.href = isGeneral ? '/launches' : '/analytics';
         return true;
       }
 
       if (response.status === 401 || response?.headers?.get('logout')) {
-        if (!isSecured) {
-          setCookie('auth', '', -10);
-          setCookie('showorg', '', -10);
-          setCookie('impersonate', '', -10);
-        }
-        window.location.href = '/';
+        clearSessionAuth();
+        window.location.href = '/auth/login';
       }
       if (response.status === 406) {
         if (

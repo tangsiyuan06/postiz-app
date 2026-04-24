@@ -1,7 +1,7 @@
 'use client';
 
 import { AddProviderButton } from '@gitroom/frontend/components/launches/add.provider.component';
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import SafeImage from '@gitroom/react/helpers/safe.image';
 import { capitalize, groupBy, orderBy } from 'lodash';
 import { CalendarWeekProvider } from '@gitroom/frontend/components/launches/calendar.context';
@@ -362,6 +362,22 @@ export const LaunchesComponent = () => {
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
   const [mode] = useCookie('mode', 'dark');
   const { isLoading, data: integrations, mutate } = useIntegrationList();
+  const mutateRef = useRef(mutate);
+  mutateRef.current = mutate;
+
+  // When a channel is added from a popup (opened by the iframe OAuth flow),
+  // the popup sends postMessage to parent iframe to refresh the channel list.
+  useEffect(() => {
+    const postMessageHandler = (event: MessageEvent) => {
+      if (event.data?.type === 'CHANNEL_UPDATED') {
+        mutateRef.current();
+      }
+    };
+    window.addEventListener('message', postMessageHandler);
+    return () => {
+      window.removeEventListener('message', postMessageHandler);
+    };
+  }, []);
 
   const totalNonDisabledChannels = useMemo(() => {
     return (

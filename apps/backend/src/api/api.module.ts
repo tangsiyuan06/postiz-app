@@ -43,6 +43,7 @@ import { GoogleProvider } from '@gitroom/backend/services/auth/providers/google.
 import { FarcasterProvider } from '@gitroom/backend/services/auth/providers/farcaster.provider';
 import { WalletProvider } from '@gitroom/backend/services/auth/providers/wallet.provider';
 import { OauthProvider } from '@gitroom/backend/services/auth/providers/oauth.provider';
+import { SsoService } from '@gitroom/backend/services/auth/sso.service';
 
 const authenticatedController = [
   UsersController,
@@ -96,6 +97,7 @@ const authenticatedController = [
     FarcasterProvider,
     WalletProvider,
     OauthProvider,
+    SsoService,
   ],
   get exports() {
     return [...this.imports, ...this.providers];

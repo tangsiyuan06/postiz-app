@@ -498,6 +498,33 @@ export const AddProviderComponent: FC<{
             return;
           }
 
+          // When embedded in an iframe, OAuth providers refuse to load in-iframe.
+          // Open a popup relay that transfers the JWT to the new window and
+          // then redirects to the OAuth URL. After the channel is added the
+          // popup writes to localStorage (keyed by user ID from JWT) so the
+          // iframe can detect completion and refresh its channel list.
+          let isInIframe = false;
+          try {
+            isInIframe = window.self !== window.top;
+          } catch {
+            // Accessing window.top throws in cross-origin iframes — that itself confirms iframe context.
+            isInIframe = true;
+          }
+          if (isInIframe) {
+            const auth = window.sessionStorage.getItem('auth') || '';
+            const showorg = window.sessionStorage.getItem('showorg') || '';
+            const impersonate = window.sessionStorage.getItem('impersonate') || '';
+            const hashParts = [
+              `auth=${encodeURIComponent(auth)}`,
+              showorg ? `showorg=${encodeURIComponent(showorg)}` : '',
+              impersonate ? `impersonate=${encodeURIComponent(impersonate)}` : '',
+            ].filter(Boolean).join('&');
+            const relayUrl = `/channel-relay?redirect=${encodeURIComponent(url)}#${hashParts}`;
+            window.open(relayUrl, '_blank', 'popup,width=600,height=700');
+            modal.closeAll();
+            return;
+          }
+
           window.location.href = url;
         };
         if (isWeb3) {

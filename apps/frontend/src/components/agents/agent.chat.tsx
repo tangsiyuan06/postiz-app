@@ -50,6 +50,10 @@ export const AgentChat: FC = () => {
       properties={{
         integrations: properties,
       }}
+      headers={{
+        auth: window.sessionStorage.getItem('auth') || '',
+        showorg: window.sessionStorage.getItem('showorg') || '',
+      }}
     >
       <Hooks />
       <LoadMessages id={params.id} />

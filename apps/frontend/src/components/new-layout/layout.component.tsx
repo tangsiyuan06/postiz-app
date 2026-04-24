@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ReactNode, useCallback } from 'react';
+import React, { ReactNode, useCallback, useEffect } from 'react';
 import { Logo } from '@gitroom/frontend/components/new-layout/logo';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 const ModeComponent = dynamic(
@@ -48,6 +48,7 @@ const jakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
 });
 
+
 export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   const fetch = useFetch();
 
@@ -56,7 +57,9 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   // Feedback icon component attaches Sentry feedback to a top-bar icon when DSN is present
   const searchParams = useSearchParams();
   const load = useCallback(async (path: string) => {
-    return await (await fetch(path)).json();
+    const res = await fetch(path);
+    if (!res.ok) return null;
+    return await res.json();
   }, []);
   const { data: user, mutate } = useSWR('/user/self', load, {
     revalidateOnFocus: false,
@@ -66,6 +69,12 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
     refreshWhenHidden: false,
   });
 
+  useEffect(() => {
+    if (user === null) {
+      window.location.href = '/auth/login';
+    }
+  }, [user]);
+
   if (!user) return null;
 
   return (
@@ -74,6 +83,10 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
         credentials="include"
         runtimeUrl={backendUrl + '/copilot/chat'}
         showDevConsole={false}
+        headers={{
+          auth: window.sessionStorage.getItem('auth') || '',
+          showorg: window.sessionStorage.getItem('showorg') || '',
+        }}
       >
         <MantineWrapper>
           <ToolTip />

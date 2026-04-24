@@ -6,6 +6,7 @@ import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/us
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { AuthService as AuthChecker } from '@gitroom/helpers/auth/auth.service';
 import { AuthProviderManager } from '@gitroom/backend/services/auth/providers/providers.manager';
+import { SsoService } from '@gitroom/backend/services/auth/sso.service';
 import dayjs from 'dayjs';
 import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/notifications/notification.service';
 import { ForgotReturnPasswordDto } from '@gitroom/nestjs-libraries/dtos/auth/forgot-return.password.dto';
@@ -19,7 +20,8 @@ export class AuthService {
     private _organizationService: OrganizationService,
     private _notificationService: NotificationService,
     private _emailService: EmailService,
-    private _providerManager: AuthProviderManager
+    private _providerManager: AuthProviderManager,
+    private _ssoService: SsoService
   ) {}
   async canRegister(provider: string) {
     if (
@@ -69,7 +71,7 @@ export class AuthService {
               )
             : false;
 
-        const obj = { addedOrg, jwt: await this.jwt(create.users[0].user) };
+        const obj = { addedOrg, jwt: await this.signJwt(create.users[0].user) };
         await this._emailService.sendEmail(
           body.email,
           'Activate your account',
@@ -87,7 +89,7 @@ export class AuthService {
         throw new Error('User is not activated');
       }
 
-      return { addedOrg: false, jwt: await this.jwt(user) };
+      return { addedOrg: false, jwt: await this.signJwt(user) };
     }
 
     const user = await this.loginOrRegisterProvider(
@@ -106,7 +108,7 @@ export class AuthService {
             addToOrg.role
           )
         : false;
-    return { addedOrg, jwt: await this.jwt(user) };
+    return { addedOrg, jwt: await this.signJwt(user) };
   }
 
   public getOrgFromCookie(cookie?: string) {
@@ -256,7 +258,7 @@ export class AuthService {
       user.activated = true;
       this._track('register', user.email, tracking).catch((err) => {});
       await NewsletterService.register(user.email);
-      return this.jwt(user as any);
+      return this.signJwt(user as any);
     }
 
     return false;
@@ -273,7 +275,7 @@ export class AuthService {
       throw new Error('Account is already activated');
     }
 
-    const jwt = await this.jwt(user);
+    const jwt = await this.signJwt(user);
 
     await this._emailService.sendEmail(
       user.email,
@@ -302,16 +304,47 @@ export class AuthService {
       provider as Provider
     );
     if (checkExists) {
-      return { jwt: await this.jwt(checkExists) };
+      return { jwt: await this.signJwt(checkExists) };
     }
 
     return { token };
   }
 
-  private async jwt(user: User) {
+  public async signJwt(user: User) {
     if (user.password) {
       delete user.password;
     }
     return AuthChecker.signJWT(user);
+  }
+
+  async ssoLogin(ssoToken: string) {
+    const { merchantId, merchantName } = await this._ssoService.verifyToken(ssoToken);
+
+    const existing = await this._userService.getUserByProvider(merchantId, Provider.GENERIC);
+    if (existing) {
+      const orgs = await this._organizationService.getOrgsByUserId(existing.id);
+      return {
+        user: existing,
+        orgId: orgs[0]?.id ?? null,
+      };
+    }
+
+    const create = await this._organizationService.createOrgAndUser(
+      {
+        company: merchantName,
+        email: `${merchantId}@sso.merchant`,
+        password: '',
+        provider: Provider.GENERIC,
+        providerId: merchantId,
+        datafast_visitor_id: undefined,
+      },
+      'sso-auto',
+      'sso-client'
+    );
+
+    return {
+      user: create.users[0].user,
+      orgId: create.id ?? null,
+    };
   }
 }

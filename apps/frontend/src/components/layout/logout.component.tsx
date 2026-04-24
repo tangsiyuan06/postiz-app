@@ -8,7 +8,7 @@ import { setCookie } from '@gitroom/frontend/components/layout/layout.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
   const fetch = useFetch();
-  const { isGeneral, isSecured } = useVariables();
+  const { isGeneral } = useVariables();
   const t = useT();
 
   const logout = useCallback(async () => {
@@ -21,14 +21,12 @@ export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
         t('yes_logout', 'Yes logout')
       )
     ) {
-      if (!isSecured) {
-        setCookie('auth', '', -10);
-      } else {
-        await fetch('/user/logout', {
-          method: 'POST',
-        });
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem('auth');
+        window.sessionStorage.removeItem('showorg');
+        window.sessionStorage.removeItem('impersonate');
       }
-      window.location.href = '/';
+      window.location.href = '/auth/login';
     }
   }, []);
   return (

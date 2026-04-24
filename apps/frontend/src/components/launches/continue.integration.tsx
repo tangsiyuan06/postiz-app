@@ -42,6 +42,21 @@ export const ContinueIntegration: FC<{
   // Helper to handle navigation - redirects if logged or returnURL exists, otherwise shows inline
   const navigateOrShow = useCallback(
     (path: string, returnURL: string | undefined, successMessage: string) => {
+      // Popup mode: opened from an iframe to handle OAuth without navigating the iframe itself.
+      // Send postMessage to parent iframe so it refreshes the channel list, then close popup.
+      if (
+        typeof window !== 'undefined' &&
+        window.sessionStorage.getItem('channel_popup_mode') === 'true'
+      ) {
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({ type: 'CHANNEL_UPDATED', provider }, '*');
+          }
+        } catch { /* ignore cross-origin errors */ }
+        window.close();
+        return;
+      }
+
       if (returnURL) {
         // If returnURL exists, always redirect to it with the path params
         const params = path.includes('?') ? path.split('?')[1] : '';

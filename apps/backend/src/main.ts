@@ -9,6 +9,10 @@ Runtime.install({ shutdownSignals: [] });
 
 process.env.TZ = 'UTC';
 
+process.on('unhandledRejection', (reason: any) => {
+  console.error('Unhandled promise rejection (non-fatal):', reason?.message || reason);
+});
+
 import cookieParser from 'cookie-parser';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -36,8 +40,11 @@ async function start() {
         'reload',
         'onboarding',
         'activate',
+        'auth',
+        'showorg',
+        'impersonate',
+        'logout',
         'x-copilotkit-runtime-client-gql-version',
-        ...(process.env.NOT_SECURED ? ['auth', 'showorg', 'impersonate'] : []),
       ],
       origin: [
         process.env.FRONTEND_URL,
@@ -47,7 +54,7 @@ async function start() {
     },
   });
 
-  await startMcp(app);
+  startMcp(app).catch((e) => Logger.error('MCP startup failed (non-fatal)', e));
 
   app.useGlobalPipes(
     new ValidationPipe({
