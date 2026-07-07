@@ -1,0 +1,1 @@
+{"allow":["read_file(/Users/cyril/workspaces/postiz-app/k8s/**)","glob_file(/Users/cyril/workspaces/postiz-app/k8s/**)","grep_file(/Users/cyril/workspaces/postiz-app/k8s/**)","write_todos","task","web_fetch","web_search","ask_user","memory_tool"],"deny":[]}

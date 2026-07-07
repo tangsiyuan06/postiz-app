@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Postiz SSO Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #111; color: #eee; height: 100vh; display: flex; flex-direction: column; }
+
+    .toolbar {
+      padding: 12px 16px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .toolbar label { font-size: 13px; color: #aaa; white-space: nowrap; }
+    .toolbar input {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #eee;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      width: 260px;
+    }
+    .toolbar input:focus { outline: none; border-color: #7c4dff; }
+    .toolbar button {
+      background: #7c4dff;
+      color: #fff;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .toolbar button:hover { background: #6a3de8; }
+    .toolbar button.secondary {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #ccc;
+    }
+    .toolbar button.secondary:hover { background: #333; }
+
+    .presets { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .presets span { font-size: 12px; color: #666; }
+    .preset-btn {
+      background: #222;
+      border: 1px solid #444;
+      color: #bbb;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .preset-btn:hover { border-color: #7c4dff; color: #eee; }
+
+    .status {
+      padding: 6px 16px;
+      background: #161616;
+      font-size: 12px;
+      color: #666;
+      border-bottom: 1px solid #2a2a2a;
+      min-height: 28px;
+    }
+    .status.ok  { color: #4caf50; }
+    .status.err { color: #f44336; }
+    .status.info { color: #7c4dff; }
+
+    .iframe-wrap { flex: 1; position: relative; }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+    .placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #444;
+      font-size: 15px;
+    }
+    .placeholder svg { opacity: 0.3; }
+  </style>
+</head>
+<body>
+
+<div class="toolbar">
+  <label for="postizUrl">Postiz URL</label>
+  <input id="postizUrl" value="http://localhost:4200" />
+
+  <label for="tokenInput">SSO auth_code</label>
+  <input id="tokenInput" value="token-alice" placeholder="any string" />
+
+  <button onclick="loadIframe()">Load iframe</button>
+  <button class="secondary" onclick="reloadIframe()">Reload</button>
+  <button class="secondary" onclick="clearIframe()">Clear</button>
+
+  <div class="presets">
+    <span>Presets:</span>
+    <button class="preset-btn" onclick="useAuthCode('token-alice')">token-alice</button>
+    <button class="preset-btn" onclick="useAuthCode('token-bob')">token-bob</button>
+    <button class="preset-btn" onclick="useAuthCode('custom-merchant-xyz')">custom-merchant-xyz</button>
+  </div>
+</div>
+
+<div class="status" id="status">Enter an auth_code and click "Load iframe".</div>
+
+<div class="iframe-wrap">
+  <div class="placeholder" id="placeholder">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <rect x="2" y="3" width="20" height="18" rx="2"/>
+      <path d="M8 3v18M2 9h6"/>
+    </svg>
+    <span>iframe will appear here</span>
+  </div>
+  <iframe id="postizFrame" style="display:none"></iframe>
+</div>
+
+<script>
+  function setStatus(msg, type = '') {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status ' + type;
+  }
+
+  function buildSsoUrl() {
+    const base = document.getElementById('postizUrl').value.replace(/\/$/, '');
+    const authCode = document.getElementById('tokenInput').value.trim();
+    if (!authCode) { setStatus('auth_code is required', 'err'); return null; }
+    // Frontend page at /sso (Next.js handles this route)
+    return `${base}/sso?auth_code=${encodeURIComponent(authCode)}`;
+  }
+
+  function loadIframe() {
+    const url = buildSsoUrl();
+    if (!url) return;
+
+    const frame = document.getElementById('postizFrame');
+    const ph = document.getElementById('placeholder');
+
+    frame.src = url;
+    frame.style.display = 'block';
+    ph.style.display = 'none';
+
+    setStatus(`Loading: ${url}`, 'info');
+
+    frame.onload = () => setStatus(`Loaded: ${url}`, 'ok');
+    frame.onerror = () => setStatus(`Failed to load: ${url}`, 'err');
+  }
+
+  function reloadIframe() {
+    const frame = document.getElementById('postizFrame');
+    if (!frame.src || frame.style.display === 'none') { loadIframe(); return; }
+    frame.src = frame.src;
+    setStatus('Reloading...', 'info');
+  }
+
+  function clearIframe() {
+    const frame = document.getElementById('postizFrame');
+    frame.src = 'about:blank';
+    frame.style.display = 'none';
+    document.getElementById('placeholder').style.display = 'flex';
+    setStatus('Cleared.', '');
+  }
+
+  function useAuthCode(authCode) {
+    document.getElementById('tokenInput').value = authCode;
+  }
+
+  // Listen for messages from the iframe (SSO events)
+  window.addEventListener('message', (event) => {
+    if (!event.data || typeof event.data !== 'object') return;
+    const { type } = event.data;
+
+    if (type === 'SSO_NEEDS_ACCOUNT_CREATION') {
+      setStatus(`SSO: user not found (merchantId=${event.data.merchantId}) — creating...`, 'info');
+    }
+    if (type === 'channel_added' || event.data.success === true) {
+      setStatus(`Channel added: ${event.data.msg || ''}`, 'ok');
+    }
+  });
+</script>
+</body>
+</html>
